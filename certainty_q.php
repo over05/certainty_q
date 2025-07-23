@@ -83,7 +83,7 @@ function buildIntersectionGraph(array $atoms): array {
 
 /**
  * Construit un arbre d’intersection ("join tree") pour la requête.
- * Retourne un tableau d’arêtes : [index1, index2, [variables partagées]]
+ * Retourne un tableau d’arêtes : [index1, index2, [variables partagées],poids]
  */
 function buildJoinTree(array $atoms): array {
     $n = count($atoms);
@@ -151,7 +151,7 @@ function hasAcyclicJoinTree($atoms) {
     $n = count($atoms);
     $edges = allIntersectionEdges($atoms);
 
-    // Génère tous les arbres couvrants : algorithme naïf (exponentiel, OK pour n ≤ 7)
+    // Génère tous les arbres couvrants 
     function gen($n, $edges, $used = [], $chosen = [], $idx = 0) {
         if (count($chosen) == $n-1) return [$chosen];
         if ($idx >= count($edges)) return [];
@@ -174,7 +174,7 @@ function hasAcyclicJoinTree($atoms) {
     }
     $trees = gen($n, $edges);
 
-    // Pour chaque arbre couvrant, teste la connexité join tree (reprise de isJoinTreeConnected)
+    // Pour chaque arbre couvrant, teste la connexité join tree 
     foreach ($trees as $tree) {
         $adj = array_fill(0, $n, []);
         foreach ($tree as $e) {
@@ -224,7 +224,7 @@ function joinTreeToText(array $joinTree, array $atoms): string {
             $unique[$key] = [
                 'from' => $e['from'],
                 'to'   => $e['to'],
-                'label' => $e['label'] // Correction ici : 'vars' vers 'label'
+                'label' => $e['label'] 
             ];
         } else {
             $unique[$key]['label'] = array_unique(array_merge($unique[$key]['label'], $e['label']));
@@ -296,7 +296,7 @@ function parseAtoms(string $q): array {
     $atoms = [];
     foreach ($m as $a) {
         $rel = $a[1];
-        if (isset($seen[$rel])) throw new Exception("Auto‑jointure sur «".$rel."».");
+        if (isset($seen[$rel])) throw new Exception("Auto-jointure sur «".$rel."».");
         $seen[$rel] = true;
 
         // Clé primaire et non-clés séparées par un point-virgule
@@ -390,7 +390,6 @@ function buildAttackGraph(array $atoms, array $joinTree): array {
     for ($i = 0; $i < $n; $i++) {
         $closureF = closure($atoms, $i); // F+
 		$closed_atoms[$i] = $closureF;
-		//echo $atoms[$i]['rel'] . "+=" . implode(',', $closureF) . "\n";
         for ($j = 0; $j < $n; $j++) {
             if ($i == $j) continue;
             $pathEdges = findPath($i, $j, $joinTree);
@@ -409,16 +408,8 @@ function buildAttackGraph(array $atoms, array $joinTree): array {
     return [$edges,$closed_atoms];
 }
 
-
-
-//echo $atoms[$i]['rel'] . "+=" . implode(',', $closureF) . "\n";
-
-
-
-
-
 /**
- * Détection de cycle (DFS) – O(|E|+|V|).
+ * Détection de cycle (DFS).
  */
 function isAcyclic(array $edges, int $n): bool {
     $adj = array_fill(0, $n, []);
@@ -451,7 +442,6 @@ function findCycles(array $edges, int $n): array {
     $B = array_fill(0, $n, []);
     $start = 0;
 
-    // Version simplifiée pour graphe petit (DFS à la Johnson)
     function circuit($v, $start, &$adj, &$stack, &$blocked, &$B, &$cycles) {
         $found = false;
         $stack[] = $v;
@@ -508,7 +498,7 @@ function findCycles(array $edges, int $n): array {
   4. Réécriture FO 
 ------------------------------------------------------------*/
 /**
- * Génère la réécriture FO «à la Koutris&Wijsen» pour q sans cycle.
+ * Génère la réécriture FO pour q sans cycle.
  * Respecte les clés primaires multiples dans l’énoncé et dans les ∀/∃.
  */
 function makeFO(array $atoms): string {
@@ -517,8 +507,6 @@ function makeFO(array $atoms): string {
     foreach ($atoms as $a) foreach ($a['vars'] as $v)
         $exist[$v] = true;
     $existList = implode(', ', array_keys($exist));
-
-    // 4.2 Corps conjonctif initial (les atomes eux-mêmes)
     $body = [];
     foreach ($atoms as $a)
         $body[] = sprintf('%s(%s)', $a['rel'], implode(', ', $a['vars']));
@@ -553,8 +541,6 @@ function makeFO(array $atoms): string {
             $pVarsPrime[$j] = ($pVarsPrime[$j] === $shared) ? $sharedP : $pVarsPrime[$j]."'";
         }
         $antecedent = sprintf('%s(%s)', $parent['rel'], implode(', ', $pVarsPrime));
-
-        // Conséquent corrigé : variable clé initiale préservée, variables non-clé renommées
         $childTuple = $child['vars'];
         $childTuple[0] = $shared; // on conserve la clé initiale
         for ($k = 1; $k < count($childTuple); $k++) {
@@ -604,7 +590,7 @@ function frenchReading(array $atoms): string {
     }
     $txt .= '1. Les relations '.implode(', ', $phrases).' sont vraies dans la base de données ;<br>';
 
-    // Générer les contraintes universelles et existentielles pour chaque paire consécutive d'atomes
+    // Générer les contraintes pour chaque paire consécutive d'atomes
     for ($i = 0; $i < count($atoms) - 1; $i++) {
         $current = $atoms[$i];
         $next = $atoms[$i + 1];
@@ -636,7 +622,7 @@ function svgAtomLabel($atom) {
     $key  = $atom['key'];
     $label = "<tspan font-weight='bold'>$rel</tspan>(";
     $spans = [];
-    $keyQueue = $key; // On va consommer la clé une fois qu'on l'a utilisée
+    $keyQueue = $key; 
 
     foreach ($vars as $i => $var) {
         if (($k = array_search($var, $keyQueue, true)) !== false) {
@@ -757,7 +743,6 @@ function render(string $in, array $atoms, bool $fo, ?string $f, array $edges, ar
 	  <?php	if($joinTree): 
 	  $nodes = [];
 foreach ($atoms as $i => $atom) {
-    // Tu peux adapter ce qui suit pour changer l’affichage
     $label = $atom['rel'] . '(' . implode(',', $atom['vars']) . ')';
     $nodes[] = ['id'=>$i, 'label'=>$label];
 }
@@ -766,7 +751,6 @@ $root = findRoot($nodes, $joinTree);
 $tree = buildGraphTree($nodes, $joinTree);
 $positionsJoinTree = [];
 $y = 70;
-//var_dump($edges);
 layoutTree($tree, $root, 80, $y, 140, 90, $positionsJoinTree);
 $heightJoin = max($y + 30, 300);
 $widthJoin = 600;
@@ -899,11 +883,3 @@ $heightAttack = 340;
 
 </body>
 </html>
-<!--
-		  R0(x, y;z) ∧ R1(x; y) ∧ R2(z;x) -> GA a 3cycles<br>
-		  R(x; y) ∧ S(y;z) ∧ T (y; z) -> pas d attaque<br>
-		  R(x;y) ∧ S(y;z) ∧ T (z;m1, m2) ∧ U (m1;m2) -> GA avec 7 cycle<br>
-		  Emp(eid; did), Dept(did; mgr)-> pas d attaque<br>
-		  R0(x; y), R1(y; x), R2(x, y), R3(x; z), R4(x; z) -> GA avec 1 cycle<br>
-		  R0(y, z; u), R1(x; y), R2(z; x, u) -> requête cyclique<br>
--->
